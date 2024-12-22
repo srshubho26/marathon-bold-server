@@ -84,8 +84,21 @@ async function run() {
             if(tokenEmail !== req.body.creatorEmail){
                 return res.status(403).send({message: "Forbidden Access"});
             }
-            const result = await marathonsCollection.insertOne(req.body);
+            const result = await marathonsCollection.insertOne({...req.body, totalRegCount: 0});
             res.send(result)
+        })
+
+        // Load all marathons
+        app.post('/marathons', verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            if(tokenEmail !== req.body.email){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+
+            const cursor = marathonsCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+
         })
 
 
