@@ -99,6 +99,18 @@ async function run() {
             const result = await cursor.toArray();
             res.send(result);
 
+        });
+
+        // Load single marathon data
+        app.post('/marathons/:id', verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            if(tokenEmail !== req.body.email){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)}
+            const result = await marathonsCollection.findOne(query);
+            res.send(result);
         })
 
 
