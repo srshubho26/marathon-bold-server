@@ -54,6 +54,14 @@ async function run() {
             }).send({success: true})
         })
 
+        // Clear cookie after logging out
+        app.post('/logout', (req, res)=>{
+            res.clearCookie('token', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite:  process.env.NODE_ENV === 'production' ? 'none' : 'strict'
+            }).send({success: true})
+        })
 
 
     } finally {
