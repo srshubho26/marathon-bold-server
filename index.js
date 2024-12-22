@@ -24,6 +24,21 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+const verifyToken = (req, res, next)=>{
+    const token = req.cookies?.token;
+    if(!token){
+        return res.status(401).send({message: 'Unauthorized'})
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded)=>{
+        if(err){
+            return res.status(401).send({message: 'Unauthorized'})
+        }
+        req.user = decoded;
+        next();
+    })
+}
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
@@ -61,6 +76,16 @@ async function run() {
                 secure: process.env.NODE_ENV === 'production',
                 sameSite:  process.env.NODE_ENV === 'production' ? 'none' : 'strict'
             }).send({success: true})
+        })
+
+        //Adding new marathon
+        app.post('/add-marathon', verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            if(tokenEmail !== req.body.creatorEmail){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+            const result = await marathonsCollection.insertOne(req.body);
+            res.send(result)
         })
 
 
