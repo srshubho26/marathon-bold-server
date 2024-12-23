@@ -50,6 +50,7 @@ async function run() {
 
         const database = client.db("marathon-bold");
         const marathonsCollection = database.collection("marathons");
+        const applicationsCollection = database.collection("applications");
 
         // Load all the campaigns excluding some fields
         app.get('/', async (req, res) => {
@@ -111,6 +112,25 @@ async function run() {
             const query = {_id: new ObjectId(id)}
             const result = await marathonsCollection.findOne(query);
             res.send(result);
+        });
+
+        // Add new application
+        app.post('/marathon-apply', verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            const body = req.body;
+            if(tokenEmail !== body.applyData.email){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+            
+            const result = await applicationsCollection.insertOne(body.applyData);
+            const filter = {_id: new ObjectId(body.forMarathonUpdate.id)}
+            const options = {upsert: true}
+            const updateDoc = {
+                $set: {totalRegCount: parseInt(body.forMarathonUpdate.totalReg) + 1}
+            }
+            await marathonsCollection.updateOne(filter, updateDoc, options);
+
+            res.send(result)
         })
 
         // Load marathons created by logged in user
@@ -139,11 +159,11 @@ async function run() {
             const id = req.body.ownerVerify.id;
             const filter = {_id: new ObjectId(id)}
             const options = {upsert: true}
-            const updateDon = {
+            const updateDoc = {
                 $set: {...doc}
             }
 
-            const result = await marathonsCollection.updateOne(filter, updateDon, options);
+            const result = await marathonsCollection.updateOne(filter, updateDoc, options);
             res.send(result);
         });
 
