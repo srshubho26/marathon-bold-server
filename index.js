@@ -145,6 +145,20 @@ async function run() {
 
             const result = await marathonsCollection.updateOne(filter, updateDon, options);
             res.send(result);
+        });
+
+        // Delete a marathon
+        app.delete("/my-marathons/delete", verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            const creator = req.query.creatorEmail;
+            if(tokenEmail !== creator){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+
+            const id = req.query.id;
+            const query = {_id: new ObjectId(id)}
+            const result = await marathonsCollection.deleteOne(query);
+            res.send(result);
         })
 
 
