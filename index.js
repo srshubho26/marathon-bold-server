@@ -113,6 +113,20 @@ async function run() {
             res.send(result);
         })
 
+        // Load marathons created by logged in user
+        app.get('/my-marathons', verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            const queryEmail = req.query.email;
+            if(tokenEmail !== queryEmail){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+
+            const query = {creatorEmail: queryEmail}
+            const cursor = marathonsCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
 
     } finally {
         // Ensures that the client will close when you finish/error
