@@ -65,7 +65,12 @@ async function run() {
             if (tokenEmail !== req.query.email) {
                 return res.status(403).send({ message: "Forbidden Access" });
             }
+            const search = req.query.search;
             const query = { email: tokenEmail }
+            if(search){
+                query.marathonTitle = {$regex : search, $options : 'i'}
+            }
+
             const cursor = applicationsCollection.find(query);
             const result = await cursor.toArray();
             res.send(result);
