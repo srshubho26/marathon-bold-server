@@ -59,6 +59,41 @@ async function run() {
             res.send(result);
         });
 
+        // Load applications of a logged in user
+        app.get('/my-applications', verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            if(tokenEmail !== req.query.email){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+            const query = {email: tokenEmail}
+            const cursor = applicationsCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+
+        });
+
+        // Update application of logged in user
+        app.patch('/update-application', verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            if(tokenEmail !== req.body.ownerVerify.creatorEmail){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+
+            const doc = req.body.doc;
+            const id = req.body.ownerVerify.id;
+            const filter = {_id: new ObjectId(id)}
+            const options = {upsert: true}
+            const updateDoc = {
+                $set: {...doc}
+            }
+
+            const result = await applicationsCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        })
+
+        // Delete application
+        // app.delete('/my-applications/delete', verifyToken, asy)
+
         // Create JWT after sign in
         app.post('/jwt', (req, res)=>{
             const user = req.body;
@@ -122,7 +157,7 @@ async function run() {
                 return res.status(403).send({message: "Forbidden Access"});
             }
             
-            const result = await applicationsCollection.insertOne(body.applyData);
+            const result = await applicationsCollection.insertOne({...body.applyData, marathonId: id});
             const filter = {_id: new ObjectId(body.forMarathonUpdate.id)}
             const options = {upsert: true}
             const updateDoc = {
