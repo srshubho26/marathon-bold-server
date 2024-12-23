@@ -127,6 +127,26 @@ async function run() {
             res.send(result);
         })
 
+        // Update single marathon
+        app.patch('/my-marathons/update', verifyToken, async(req, res)=>{
+            const tokenEmail = req.user.email;
+            const creator = req.body.ownerVerify.creatorEmail;
+            if(tokenEmail !== creator){
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+
+            const doc = req.body.doc;
+            const id = req.body.ownerVerify.id;
+            const filter = {_id: new ObjectId(id)}
+            const options = {upsert: true}
+            const updateDon = {
+                $set: {...doc}
+            }
+
+            const result = await marathonsCollection.updateOne(filter, updateDon, options);
+            res.send(result);
+        })
+
 
     } finally {
         // Ensures that the client will close when you finish/error
