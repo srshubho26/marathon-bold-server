@@ -157,7 +157,10 @@ async function run() {
                 return res.status(403).send({ message: "Forbidden Access" });
             }
 
-            const cursor = marathonsCollection.find();
+            const sort = req.query.sort;
+            let cursor = marathonsCollection.find();
+            if(sort)cursor = marathonsCollection.find().sort({createdAt: sort==='asc' ? 1 : -1});
+
             const result = await cursor.toArray();
             res.send(result);
 
