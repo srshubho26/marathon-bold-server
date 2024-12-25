@@ -18,7 +18,11 @@ const client = new MongoClient(uri, {
 
 // Middleware
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: [
+        "http://localhost:5173",
+        "https://assignment-11-d38e4.web.app",
+        "https://assignment-11-d38e4.firebaseapp.com"
+    ],
     credentials: true
 }));
 app.use(express.json());
@@ -60,15 +64,18 @@ async function run() {
         });
 
         // Load applications of a logged in user
-        app.get('/my-applications', verifyToken, async (req, res) => {
+        app.get('/my-applies', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
             if (tokenEmail !== req.query.email) {
                 return res.status(403).send({ message: "Forbidden Access" });
             }
             const search = req.query.search;
             const query = { email: tokenEmail }
-            if(search){
-                query.marathonTitle = {$regex : search, $options : 'i'}
+
+            const filteredSearchQuery = search.replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, '');
+
+            if (search) {
+                query.marathonTitle = { $regex: filteredSearchQuery, $options: 'i' }
             }
 
             const cursor = applicationsCollection.find(query);
@@ -78,7 +85,7 @@ async function run() {
         });
 
         // Update application of logged in user
-        app.patch('/update-application', verifyToken, async (req, res) => {
+        app.put('/update-application', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
             if (tokenEmail !== req.body.ownerVerify.creatorEmail) {
                 return res.status(403).send({ message: "Forbidden Access" });
@@ -97,7 +104,7 @@ async function run() {
         })
 
         // Delete application
-        app.delete('/my-applications/delete', verifyToken, async (req, res) => {
+        app.delete('/my-applies/delete', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
             if (tokenEmail !== req.query.creatorEmail) {
                 return res.status(403).send({ message: "Forbidden Access" });
@@ -108,10 +115,10 @@ async function run() {
             const result = await applicationsCollection.deleteOne(query);
 
             const filterMarathon = { _id: new ObjectId(req.query.marathonId) }
-            const getMarathon = await marathonsCollection.findOne(filterMarathon, {projection: { totalRegCount: 1 }});
-            
+            const getMarathon = await marathonsCollection.findOne(filterMarathon, { projection: { totalRegCount: 1 } });
+
             const updateDoc = {
-                $set: {totalRegCount: getMarathon.totalRegCount-1}
+                $set: { totalRegCount: getMarathon.totalRegCount - 1 }
             }
             const options = { upsert: true }
 
@@ -150,21 +157,41 @@ async function run() {
             res.send(result)
         })
 
-        // Load all marathons
-        app.post('/marathons', verifyToken, async (req, res) => {
+        // Getting a specific application data to check if a user is already registered
+        app.post('/is-already-applied', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
-            if (tokenEmail !== req.body.email) {
+            const userEmail = req.body.email;
+
+            if (tokenEmail !== userEmail) {
                 return res.status(403).send({ message: "Forbidden Access" });
             }
 
+            const marathonId = req.body.marathonId;
+
+            const query = { email: userEmail, marathonId }
+            const result = await applicationsCollection.findOne(query, { projection: { _id: 1 } });
+            res.send({ registered: !!result });
+        })
+
+        // Load all marathons
+        app.get('/marathons', async (req, res) => {
             const sort = req.query.sort;
-            let cursor = marathonsCollection.find();
-            if(sort)cursor = marathonsCollection.find().sort({createdAt: sort==='asc' ? 1 : -1});
+            const page = parseInt(req.query.page || 0);
+            const size = parseInt(req.query.size || 6);
+
+            const cursor = marathonsCollection.find();
+            if (sort) cursor.sort({ createdAt: sort === 'asc' ? 1 : -1 });
+            cursor.skip(page * size).limit(size);
 
             const result = await cursor.toArray();
             res.send(result);
-
         });
+
+        // Get total number of marathons
+        app.get('/total-marathons', async(req, res)=>{
+            const count = await marathonsCollection.estimatedDocumentCount();
+            res.send({count});
+        })
 
         // Load single marathon data
         app.post('/marathons/:id', verifyToken, async (req, res) => {
@@ -199,6 +226,24 @@ async function run() {
             res.send(result)
         })
 
+
+        // Get total marathon and applies of a user
+        app.post('/entries-count', verifyToken, async (req, res) => {
+            const tokenEmail = req.user.email;
+            const body = req.body;
+            if (tokenEmail !== body.email) {
+                return res.status(403).send({ message: "Forbidden Access" });
+            }
+
+            const marathonQuery = { creatorEmail: tokenEmail }
+            const applyQuery = { email: tokenEmail }
+
+            const marathonCount = await marathonsCollection.countDocuments(marathonQuery)
+            const applyCount = await applicationsCollection.countDocuments(applyQuery);
+
+            res.send({ marathonCount, applyCount })
+        })
+
         // Load marathons created by logged in user
         app.get('/my-marathons', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
@@ -214,7 +259,7 @@ async function run() {
         })
 
         // Update single marathon
-        app.patch('/my-marathons/update', verifyToken, async (req, res) => {
+        app.put('/my-marathons/update', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
             const creator = req.body.ownerVerify.creatorEmail;
             if (tokenEmail !== creator) {
