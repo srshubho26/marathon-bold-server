@@ -21,7 +21,9 @@ app.use(cors({
     origin: [
         "http://localhost:5173",
         "https://assignment-11-d38e4.web.app",
-        "https://assignment-11-d38e4.firebaseapp.com"
+        "https://assignment-11-d38e4.firebaseapp.com",
+        "https://marathon-bold.web.app",
+        "https://marathon-bold.firebaseapp.com"
     ],
     credentials: true
 }));
