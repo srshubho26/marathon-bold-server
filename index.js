@@ -56,6 +56,7 @@ async function run() {
 
         const database = client.db("marathon-bold");
         const marathonsCollection = database.collection("marathons");
+        const blogsCollection = database.collection("blogs");
         const applicationsCollection = database.collection("applications");
 
         // Load all the campaigns excluding some fields
@@ -159,6 +160,16 @@ async function run() {
             res.send(result)
         })
 
+        //Adding new blog
+        app.post('/add-blog', verifyToken, async (req, res) => {
+            const tokenEmail = req.user.email;
+            if (tokenEmail !== req.body.author.email) {
+                return res.status(403).send({ message: "Forbidden Access" });
+            }
+            const result = await blogsCollection.insertOne({ ...req.body });
+            res.send(result)
+        })
+
         // Getting a specific application data to check if a user is already registered
         app.post('/is-already-applied', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
@@ -189,21 +200,45 @@ async function run() {
             res.send(result);
         });
 
+        // Load all blogs
+        app.get('/blogs', async (req, res) => {
+            const sort = req.query.sort;
+            const page = parseInt(req.query.page || 0);
+            const size = parseInt(req.query.size || 6);
+
+            const cursor = blogsCollection.find();
+            if (sort) cursor.sort({ date: sort === 'asc' ? 1 : -1 });
+            cursor.skip(page * size).limit(size);
+
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
         // Get total number of marathons
-        app.get('/total-marathons', async(req, res)=>{
+        app.get('/total-marathons', async (req, res) => {
             const count = await marathonsCollection.estimatedDocumentCount();
-            res.send({count});
+            res.send({ count });
+        })
+
+        // Get total number of blogs
+        app.get('/total-blogs', async (req, res) => {
+            const count = await blogsCollection.estimatedDocumentCount();
+            res.send({ count });
         })
 
         // Load single marathon data
-        app.post('/marathons/:id', verifyToken, async (req, res) => {
-            const tokenEmail = req.user.email;
-            if (tokenEmail !== req.body.email) {
-                return res.status(403).send({ message: "Forbidden Access" });
-            }
+        app.get('/marathons/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await marathonsCollection.findOne(query);
+            res.send(result);
+        });
+
+        // Load single blog data
+        app.get('/blogs/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await blogsCollection.findOne(query);
             res.send(result);
         });
 
@@ -260,6 +295,20 @@ async function run() {
             res.send(result);
         })
 
+        // Load blogs created by logged in user
+        app.get('/my-blogs', verifyToken, async (req, res) => {
+            const tokenEmail = req.user.email;
+            const queryEmail = req.query.email;
+            if (tokenEmail !== queryEmail) {
+                return res.status(403).send({ message: "Forbidden Access" });
+            }
+
+            const query = { "author.email": queryEmail }
+            const cursor = blogsCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
         // Update single marathon
         app.put('/my-marathons/update', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
@@ -280,6 +329,26 @@ async function run() {
             res.send(result);
         });
 
+        // Update single blog
+        app.put('/my-blogs/update', verifyToken, async (req, res) => {
+            const tokenEmail = req.user.email;
+            const creator = req.body.ownerVerify.creatorEmail;
+            if (tokenEmail !== creator) {
+                return res.status(403).send({ message: "Forbidden Access" });
+            }
+
+            const doc = req.body.doc;
+            const id = req.body.ownerVerify.id;
+            const filter = { _id: new ObjectId(id) }
+            const options = { upsert: true }
+            const updateDoc = {
+                $set: { ...doc }
+            }
+
+            const result = await blogsCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        });
+
         // Delete a marathon
         app.delete("/my-marathons/delete", verifyToken, async (req, res) => {
             const tokenEmail = req.user.email;
@@ -291,6 +360,20 @@ async function run() {
             const id = req.query.id;
             const query = { _id: new ObjectId(id) }
             const result = await marathonsCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        // Delete a blog
+        app.delete("/my-blogs/delete", verifyToken, async (req, res) => {
+            const tokenEmail = req.user.email;
+            const creator = req.query.creatorEmail;
+            if (tokenEmail !== creator) {
+                return res.status(403).send({ message: "Forbidden Access" });
+            }
+
+            const id = req.query.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await blogsCollection.deleteOne(query);
             res.send(result);
         })
 
