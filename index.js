@@ -16,6 +16,8 @@ const client = new MongoClient(uri, {
     }
 });
 
+//https://a11-server-weld.vercel.app/
+
 // Middleware
 app.use(cors({
     origin: [
@@ -274,11 +276,13 @@ async function run() {
 
             const marathonQuery = { creatorEmail: tokenEmail }
             const applyQuery = { email: tokenEmail }
+            const blogQuery = {"author.email": tokenEmail}
 
             const marathonCount = await marathonsCollection.countDocuments(marathonQuery)
             const applyCount = await applicationsCollection.countDocuments(applyQuery);
+            const blogsCount = await blogsCollection.countDocuments(blogQuery);
 
-            res.send({ marathonCount, applyCount })
+            res.send({ marathonCount, applyCount, blogsCount })
         })
 
         // Load marathons created by logged in user
